@@ -313,4 +313,22 @@ namespace WebRTC
     {
         return m_mapSetSessionDescriptionObserver[connection];
     }
+
+    void Context::CreateOffer(webrtc::PeerConnectionInterface* connection, const RTCOfferOptions& options, rtc::scoped_refptr<CreateSessionDescriptionObserver>& observer)
+    {
+        webrtc::PeerConnectionInterface::RTCOfferAnswerOptions _options;
+        _options.ice_restart = options.iceRestart;
+        _options.offer_to_receive_audio = options.offerToReceiveAudio;
+        _options.offer_to_receive_video = options.offerToReceiveVideo;
+
+        connection->CreateOffer(observer.get(), _options);
+    }
+
+    void Context::CreateAnswer(webrtc::PeerConnectionInterface* connection, const RTCAnswerOptions& options, rtc::scoped_refptr<CreateSessionDescriptionObserver>& observer)
+    {
+        webrtc::PeerConnectionInterface::RTCOfferAnswerOptions _options;
+        _options.ice_restart = options.iceRestart;
+
+        connection->CreateAnswer(observer.get(), _options);
+    }
 }

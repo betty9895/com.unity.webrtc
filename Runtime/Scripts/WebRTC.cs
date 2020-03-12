@@ -44,23 +44,6 @@ namespace Unity.WebRTC
             protocol = "";
         }
     }
-    public class RTCRtpReceiver
-    {
-        internal IntPtr self;
-        internal RTCRtpReceiver(IntPtr ptr)
-        {
-            self = ptr;
-        }
-    }
-
-    public class RTCRtpSender
-    {
-        internal IntPtr self;
-        internal RTCRtpSender(IntPtr ptr)
-        {
-            self = ptr;
-        }
-    }
 
     public enum RTCErrorDetailType
     {
@@ -306,19 +289,24 @@ namespace Unity.WebRTC
             Marshal.Copy(buf, array, 0, length);
             Marshal.FreeCoTaskMem(buf);
 
-            var tracks = new List<T>();
+            var list = new List<T>();
             foreach (var ptr in array)
             {
-                if (WebRTC.Context.table.ContainsKey(ptr))
-                {
-                    tracks.Add(WebRTC.Context.table[ptr] as T);
-                }
-                else
-                {
-                    tracks.Add(constructor(ptr));
-                }
+                list.Add(FindOrCreate(ptr, constructor));
             }
-            return tracks;
+            return list;
+        }
+
+        internal static T FindOrCreate<T>(IntPtr ptr, Func<IntPtr, T> constructor) where T : class
+        {
+            if (Context.table.ContainsKey(ptr))
+            {
+                return Context.table[ptr] as T;
+            }
+            else
+            {
+                return constructor(ptr);
+            }
         }
 
         [AOT.MonoPInvokeCallback(typeof(DelegateDebugLog))]
@@ -333,6 +321,14 @@ namespace Unity.WebRTC
         internal static Hashtable Table { get
             {
                 return s_context?.table;
+            }
+        }
+
+        internal static Hashtable CallbackTable
+        {
+            get
+            {
+                return s_context?.callbackTable;
             }
         }
 
@@ -361,7 +357,7 @@ namespace Unity.WebRTC
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate void DelegateDebugLog([MarshalAs(UnmanagedType.LPStr)] string str);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void DelegateCreateSDSuccess(IntPtr ptr, RTCSdpType type, [MarshalAs(UnmanagedType.LPStr)] string sdp);
+    internal delegate void DelegateCreateSDSuccess(int hash, RTCSdpType type, [MarshalAs(UnmanagedType.LPStr)] string sdp);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate void DelegateCollectStats(IntPtr ptr, [MarshalAs(UnmanagedType.LPStr)] string stats);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -433,12 +429,23 @@ namespace Unity.WebRTC
         public static extern void ContextSetVideoEncoderParameter(IntPtr context, IntPtr track, int width, int height, EncoderType type);
         [DllImport(WebRTC.Lib)]
         public static extern void PeerConnectionGetConfiguration(IntPtr ptr, ref IntPtr conf, ref int len);
+        /*
         [DllImport(WebRTC.Lib)]
         public static extern void PeerConnectionCreateOffer(IntPtr ptr, ref RTCOfferOptions options);
         [DllImport(WebRTC.Lib)]
         public static extern void PeerConnectionCreateAnswer(IntPtr ptr, ref RTCAnswerOptions options);
         [DllImport(WebRTC.Lib)]
-        public static extern void PeerConnectionRegisterCallbackCreateSD(IntPtr ptr, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure);
+        public static extern void PeerConnectionRegisterOnCreateSessionDescSuccess(int hash, DelegateCreateSDSuccess onSuccess);
+        [DllImport(WebRTC.Lib)]
+        public static extern void PeerConnectionRegisterOnCreateSessionDescFailure(int hash, DelegateCreateSDFailure onFailure);
+        */
+        [DllImport(WebRTC.Lib)]
+        public static extern IntPtr PeerConnectionCreateOffer(IntPtr context, IntPtr connection, ref RTCOfferOptions options,
+            int hashOnSuccess, int hashOnFailure, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure);
+        [DllImport(WebRTC.Lib)]
+        public static extern IntPtr PeerConnectionCreateAnswer(IntPtr context, IntPtr connection, ref RTCAnswerOptions options,
+            int hashOnSuccess, int hashOnFailure, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure);
+
         [DllImport(WebRTC.Lib)]
         public static extern void PeerConnectionRegisterCallbackCollectStats(IntPtr ptr, DelegateCollectStats onCollectStats);
         [DllImport(WebRTC.Lib)]
@@ -504,12 +511,21 @@ namespace Unity.WebRTC
         [return: MarshalAs(UnmanagedType.U1)]
         public static extern bool TransceiverGetCurrentDirection(IntPtr transceiver, ref RTCRtpTransceiverDirection direction);
         [DllImport(WebRTC.Lib)]
+        public static extern RTCRtpTransceiverDirection TransceiverGetDirection(IntPtr transceiver);
+        [DllImport(WebRTC.Lib)]
+        public static extern void TransceiverSetDirection(IntPtr transceiver, RTCRtpTransceiverDirection direction);
+        [DllImport(WebRTC.Lib)]
         [return: MarshalAs(UnmanagedType.U1)]
         public static extern bool TransceiverStop(IntPtr transceiver);
         [DllImport(WebRTC.Lib)]
         public static extern IntPtr TransceiverGetReceiver(IntPtr transceiver);
         [DllImport(WebRTC.Lib)]
         public static extern IntPtr TransceiverGetSender(IntPtr transceiver);
+        [DllImport(WebRTC.Lib)]
+        public static extern IntPtr RtpReceiverGetMediaStreamTrack(IntPtr receiver);
+        [DllImport(WebRTC.Lib)]
+        [return: MarshalAs(UnmanagedType.U1)]
+        public static extern bool RtpSenderReplaceTrack(IntPtr sender, IntPtr track);
         [DllImport(WebRTC.Lib)]
         public static extern int DataChannelGetID(IntPtr ptr);
         [DllImport(WebRTC.Lib)]

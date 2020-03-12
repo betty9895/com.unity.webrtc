@@ -66,6 +66,8 @@ namespace WebRTC
         void RemoveObserver(const webrtc::PeerConnectionInterface* connection);
         SetSessionDescriptionObserver* GetObserver(webrtc::PeerConnectionInterface* connection);
         void DeletePeerConnection(PeerConnectionObject* obj) { m_mapClients.erase(obj); }
+        void CreateOffer(webrtc::PeerConnectionInterface* connection, const RTCOfferOptions& options, rtc::scoped_refptr<CreateSessionDescriptionObserver>& observer);
+        void CreateAnswer(webrtc::PeerConnectionInterface* connection, const RTCAnswerOptions& options, rtc::scoped_refptr<CreateSessionDescriptionObserver>& observer);
 
         // DataChannel
         DataChannelObject* CreateDataChannel(PeerConnectionObject* obj, const char* label, const RTCDataChannelInit& options);
@@ -89,7 +91,7 @@ namespace WebRTC
         rtc::scoped_refptr<DummyAudioDevice> m_audioDevice;
         rtc::scoped_refptr<webrtc::AudioTrackInterface> m_audioTrack;
         std::list<rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>> m_mediaSteamTrackList;
-        std::map<const PeerConnectionObject*, rtc::scoped_refptr<PeerConnectionObject>> m_mapClients;
+        std::map<const PeerConnectionObject*, std::unique_ptr<PeerConnectionObject>> m_mapClients;
         std::map<const webrtc::MediaStreamTrackInterface*, NvVideoCapturer*> m_mapVideoCapturer;
         std::map<const std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface>> m_mapMediaStream;
         std::map<const webrtc::MediaStreamInterface*, std::unique_ptr<MediaStreamObserver>> m_mapMediaStreamObserver;

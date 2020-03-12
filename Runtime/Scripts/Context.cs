@@ -7,6 +7,7 @@ namespace Unity.WebRTC
     {
         internal IntPtr self;
         internal Hashtable table;
+        internal Hashtable callbackTable;
 
         private int id;
         private bool disposed;
@@ -38,6 +39,7 @@ namespace Unity.WebRTC
             self = ptr;
             this.id = id;
             this.table = new Hashtable();
+            this.callbackTable = new Hashtable();
         }
 
         ~Context()
@@ -59,6 +61,7 @@ namespace Unity.WebRTC
                     disposable.Dispose();
                 }
                 table.Clear();
+                callbackTable.Clear();
 
                 NativeMethods.ContextDestroy(id);
                 self = IntPtr.Zero;
@@ -92,7 +95,19 @@ namespace Unity.WebRTC
             NativeMethods.ContextDeletePeerConnection(self, ptr);
         }
 
-        public void PeerConnectionSetLocalDescription(IntPtr ptr, ref RTCSessionDescription desc)
+        public void PeerConnectionCreateOffer(IntPtr connection, ref RTCOfferOptions options, int hashOnSuccess, int hashOnFailure)
+        {
+            NativeMethods.PeerConnectionCreateOffer(self, connection, ref options, hashOnSuccess, hashOnFailure, RTCPeerConnection.OnSuccessCreateSessionDesc, RTCPeerConnection.OnFailureCreateSessionDesc);
+        }
+
+        public void PeerConnectionCreateAnswer(IntPtr connection, ref RTCAnswerOptions options, int hashOnSuccess, int hashOnFailure)
+        {
+            NativeMethods.PeerConnectionCreateAnswer(self, connection, ref options, hashOnSuccess, hashOnFailure, RTCPeerConnection.OnSuccessCreateSessionDesc, RTCPeerConnection.OnFailureCreateSessionDesc);
+        }
+
+        
+
+    public void PeerConnectionSetLocalDescription(IntPtr ptr, ref RTCSessionDescription desc)
         {
             NativeMethods.PeerConnectionSetLocalDescription(self, ptr, ref desc);
         }

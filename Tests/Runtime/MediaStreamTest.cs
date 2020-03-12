@@ -170,6 +170,28 @@ namespace Unity.WebRTC.RuntimeTest
 
         [UnityTest]
         [Timeout(5000)]
+        public IEnumerator AddAndRemoveMultiVideoMediaTrack()
+        {
+            var camObj1 = new GameObject("Camera1");
+            var cam1 = camObj1.AddComponent<Camera>();
+            var videoStream = cam1.CaptureStream(1280, 720, 1000000);
+            yield return new WaitForSeconds(0.1f);
+            var camObj2 = new GameObject("Camera2");
+            var cam2 = camObj2.AddComponent<Camera>();
+            var videoTrack = cam2.CaptureStreamTrack(1280, 720, 1000000);
+            yield return new WaitForSeconds(0.1f);
+
+            videoStream.AddTrack(videoTrack);
+            var test = new MonoBehaviourTest<SignalingPeersTest>();
+            test.component.SetStream(videoStream);
+            yield return test;
+            videoStream.Dispose();
+            Object.DestroyImmediate(camObj1);
+            Object.DestroyImmediate(camObj2);
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
         public IEnumerator CaptureStreamTrack()
         {
             var camObj = new GameObject("Camera");
@@ -180,6 +202,73 @@ namespace Unity.WebRTC.RuntimeTest
             yield return new WaitForSeconds(0.1f);
             Object.DestroyImmediate(camObj);
         }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator AddTransceiver()
+        {
+            //var camObj1 = new GameObject("Camera1");
+            //var cam1 = camObj1.AddComponent<Camera>();
+            //var stream1 = cam1.CaptureStream(1280, 720, 1000000);
+            var stream1 = new MediaStream();
+            yield return new WaitForSeconds(0.1f);
+            var camObj2 = new GameObject("Camera2");
+            var cam2 = camObj2.AddComponent<Camera>();
+            var stream2 = cam2.CaptureStream(1280, 720, 1000000);
+            yield return new WaitForSeconds(0.1f);
+            var camObj3 = new GameObject("Camera3");
+            var cam3 = camObj3.AddComponent<Camera>();
+            var videoTrack = cam3.CaptureStreamTrack(1280, 720, 1000000);
+            yield return new WaitForSeconds(0.1f);
+
+            RTCConfiguration config = default;
+            config.iceServers = new[]
+            {
+                new RTCIceServer {urls = new[] {"stun:stun.l.google.com:19302"}}
+            };
+            var peer1 = new RTCPeerConnection(ref config);
+            var peer2 = new RTCPeerConnection(ref config);
+
+            foreach (var track in stream1.GetTracks())
+            {
+                peer1.AddTrack(track, stream1);
+            }
+            RTCOfferOptions options1 = default;
+            RTCAnswerOptions options2 = default;
+            var op1 = peer1.CreateOffer(ref options1);
+            yield return op1;
+            var desc = op1.Desc;
+
+            stream2.AddTrack(videoTrack);
+            foreach (var track in stream2.GetTracks())
+            {
+                peer2.AddTrack(track, stream2);
+            }
+
+            var op2 = peer2.SetRemoteDescription(ref desc);
+            yield return op2;
+            var op3 = peer2.CreateAnswer(ref options2);
+            yield return op3;
+            desc = op3.Desc;
+            Assert.AreEqual(stream1.GetVideoTracks().Count(), desc.sdp.Split('\n').Count(line => line.Contains("m=video")));
+            Assert.AreEqual(stream1.GetAudioTracks().Count(), desc.sdp.Split('\n').Count(line => line.Contains("m=audio")));
+
+            var transceivers = peer2.GetTransceivers();
+            Assert.AreEqual(stream2.GetTracks().Count(), transceivers.Count());
+            var video = transceivers.Where(transceiver => transceiver.Receiver.Track.Kind == TrackKind.Video);
+            foreach (var transceiver in video)
+            {
+                Assert.True(transceiver.Sender.ReplaceTrack(transceiver.Receiver.Track));
+                transceiver.Direction = RTCRtpTransceiverDirection.SendOnly;
+            }
+            var op4 = peer2.CreateAnswer(ref options2);
+            yield return op4;
+            desc = op4.Desc;
+            Debug.Log(desc.sdp);
+            Assert.AreEqual(stream1.GetVideoTracks().Count(), desc.sdp.Split('\n').Count(line => line.Contains("m=video")));
+            Assert.AreEqual(stream1.GetAudioTracks().Count(), desc.sdp.Split('\n').Count(line => line.Contains("m=audio")));
+        }
+
 
         public class SignalingPeersTest : MonoBehaviour, IMonoBehaviourTest
         {
@@ -210,7 +299,10 @@ namespace Unity.WebRTC.RuntimeTest
 
                 peer1.OnIceCandidate = candidate => { peer2.AddIceCandidate(ref candidate); };
                 peer2.OnIceCandidate = candidate => { peer1.AddIceCandidate(ref candidate); };
-                peer2.OnTrack = e => { pc2Senders.Add(peer2.AddTrack(e.Track, _stream)); };
+                peer2.OnTrack = e => { pc2Senders.Add(peer2.AddTrack( e.Track, _stream)); };
+
+                int audioTrackCount = _stream.GetAudioTracks().Count();
+                int videoTrackCount = _stream.GetVideoTracks().Count();
 
                 foreach (var track in _stream.GetTracks())
                 {
@@ -222,6 +314,9 @@ namespace Unity.WebRTC.RuntimeTest
                 var op1 = peer1.CreateOffer(ref options1);
                 yield return op1;
                 var desc = op1.Desc;
+                Assert.AreEqual(videoTrackCount, desc.sdp.Split('\n').Count(line => line.Contains("m=video")));
+                Assert.AreEqual(audioTrackCount, desc.sdp.Split('\n').Count(line => line.Contains("m=audio")));
+
                 var op2 = peer1.SetLocalDescription(ref desc);
                 yield return op2;
                 var op3 = peer2.SetRemoteDescription(ref desc);
@@ -229,6 +324,8 @@ namespace Unity.WebRTC.RuntimeTest
                 var op4 = peer2.CreateAnswer(ref options2);
                 yield return op4;
                 desc = op4.Desc;
+                Assert.AreEqual(videoTrackCount, desc.sdp.Split('\n').Count(line => line.Contains("m=video")));
+                Assert.AreEqual(audioTrackCount, desc.sdp.Split('\n').Count(line => line.Contains("m=audio")));
                 var op5 = peer2.SetLocalDescription(ref desc);
                 yield return op5;
                 var op6 = peer1.SetRemoteDescription(ref desc);

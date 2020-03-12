@@ -29,6 +29,18 @@ namespace Unity.WebRTC
         /// <summary>
         /// 
         /// </summary>
+        public RTCRtpTransceiverDirection Direction
+        {
+            get
+            {
+                return NativeMethods.TransceiverGetDirection(self);
+            }
+            set
+            {
+                NativeMethods.TransceiverSetDirection(self, value);
+            }
+        }
+
         public RTCRtpTransceiverDirection CurrentDirection
         {
             get
@@ -58,17 +70,6 @@ namespace Unity.WebRTC
             get { return new RTCRtpSender(NativeMethods.TransceiverGetSender(self)); }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="direction"></param>
-        public void SetDirection(RTCRtpTransceiverDirection direction)
-        {
-            // TODO::
-            throw new NotImplementedException();
-        }
-
-
         public void SetCodecPreferences(RTCRtpCodecCapability[] capabilities)
         {
             throw new NotImplementedException("SetCodecPreferences is not implemented");
@@ -77,6 +78,38 @@ namespace Unity.WebRTC
         public void Stop()
         {
             NativeMethods.TransceiverStop(self);
+        }
+    }
+
+    public class RTCRtpReceiver
+    {
+        internal IntPtr self;
+        internal RTCRtpReceiver(IntPtr ptr)
+        {
+            self = ptr;
+        }
+
+        public MediaStreamTrack Track
+        {
+            get
+            {
+                var ptrTrack = NativeMethods.RtpReceiverGetMediaStreamTrack(self);
+                return WebRTC.FindOrCreate(ptrTrack, ptr => new MediaStreamTrack(ptr));
+            }
+        }
+    }
+
+    public class RTCRtpSender
+    {
+        internal IntPtr self;
+        internal RTCRtpSender(IntPtr ptr)
+        {
+            self = ptr;
+        }
+
+        public bool ReplaceTrack(MediaStreamTrack track)
+        {
+            return NativeMethods.RtpSenderReplaceTrack(self, track.self);
         }
     }
 }

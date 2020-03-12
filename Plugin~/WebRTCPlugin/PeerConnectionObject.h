@@ -5,9 +5,9 @@
 
 namespace WebRTC
 {
-    using DelegateCreateSDSuccess = void(*)(PeerConnectionObject*, RTCSdpType, const char*);
+    using DelegateCreateSDSuccess = void(*)(int, RTCSdpType, const char*);
+    using DelegateCreateSDFailure = void(*)(int);
     using DelegateCollectStats = void(*)(PeerConnectionObject*, const char*);;
-    using DelegateCreateSDFailure = void(*)(PeerConnectionObject*);
     using DelegateLocalSdpReady = void(*)(PeerConnectionObject*, const char*, const char*);
     using DelegateIceCandidate = void(*)(PeerConnectionObject*, const char*, const char*, const int);
     using DelegateOnIceConnectionChange = void(*)(PeerConnectionObject*, webrtc::PeerConnectionInterface::IceConnectionState);
@@ -39,9 +39,31 @@ namespace WebRTC
         PeerConnectionObject* m_owner = nullptr;
     };
 
-    class PeerConnectionObject
+    class CreateSessionDescriptionObserver
         : public webrtc::CreateSessionDescriptionObserver
-        , public webrtc::PeerConnectionObserver
+    {
+    public:
+        static rtc::scoped_refptr<CreateSessionDescriptionObserver> Create(int hashOnSuccess, int hashOnFailure, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure);
+
+        //webrtc::CreateSessionDescriptionObserver
+        // This callback transfers the ownership of the |desc|.
+        void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
+        // The OnFailure callback takes an RTCError, which consists of an
+        // error code and a string.
+        void OnFailure(webrtc::RTCError error) override;
+
+        ~CreateSessionDescriptionObserver() = default;
+    protected:
+        explicit CreateSessionDescriptionObserver(int hashOnSuccess, int hashOnFailure, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure);
+    private:
+        int m_hashOnSuccess;
+        int m_hashOnFailure;
+        DelegateCreateSDSuccess m_onSuccess = nullptr;
+        DelegateCreateSDFailure m_onFailure = nullptr;
+    };
+
+    class PeerConnectionObject
+        : public webrtc::PeerConnectionObserver
     {
     public:
         PeerConnectionObject(Context& context);
@@ -56,15 +78,15 @@ namespace WebRTC
         void SetRemoteDescription(const RTCSessionDescription& desc, webrtc::SetSessionDescriptionObserver* observer);
         webrtc::RTCErrorType SetConfiguration(const std::string& config);
         void GetConfiguration(std::string& config) const;
-        void CreateOffer(const RTCOfferOptions& options);
-        void CreateAnswer(const RTCAnswerOptions& options);
+        //void CreateOffer(const RTCOfferOptions& options, webrtc::CreateSessionDescriptionObserver* observer);
+        //void CreateAnswer(const RTCAnswerOptions& options, webrtc::CreateSessionDescriptionObserver* observer);
         void AddIceCandidate(const RTCIceCandidate& candidate);
-
+        /*
         void RegisterCallbackCreateSD(DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure)
         {
             onCreateSDSuccess = onSuccess;
             onCreateSDFailure = onFailure;
-        }
+        }*/
         void RegisterCallbackCollectStats(DelegateCollectStats getStatsCallback)
         {
             m_statsCollectorCallback->SetCallback(getStatsCallback);
@@ -80,12 +102,6 @@ namespace WebRTC
         RTCPeerConnectionState GetConnectionState();
         RTCIceConnectionState GetIceCandidateState();
 
-        //webrtc::CreateSessionDescriptionObserver
-        // This callback transfers the ownership of the |desc|.
-        void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
-        // The OnFailure callback takes an RTCError, which consists of an
-        // error code and a string.
-        void OnFailure(webrtc::RTCError error) override;
         // webrtc::PeerConnectionObserver
         // Triggered when the SignalingState changed.
         void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
@@ -121,8 +137,8 @@ namespace WebRTC
 
         friend class DataChannelObject;
 
-        DelegateCreateSDSuccess onCreateSDSuccess = nullptr;
-        DelegateCreateSDFailure onCreateSDFailure = nullptr;
+        //DelegateCreateSDSuccess onCreateSDSuccess = nullptr;
+        //DelegateCreateSDFailure onCreateSDFailure = nullptr;
         DelegateIceCandidate onIceCandidate = nullptr;
         DelegateLocalSdpReady onLocalSdpReady = nullptr;
         DelegateOnIceConnectionChange onIceConnectionChange = nullptr;
@@ -133,6 +149,6 @@ namespace WebRTC
     private:
         Context& context;
         PeerConnectionStatsCollectorCallback* m_statsCollectorCallback;
-
+        std::list<std::unique_ptr<CreateSessionDescriptionObserver>> m_createSessionDescriptionObserver;
     };
 }

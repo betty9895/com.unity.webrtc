@@ -35,8 +35,10 @@ namespace WebRTC
 
     PeerConnectionObject* Context::CreatePeerConnection(const webrtc::PeerConnectionInterface::RTCConfiguration& config)
     {
-        rtc::scoped_refptr<PeerConnectionObject> obj = new rtc::RefCountedObject<PeerConnectionObject>(*this);
-        obj->connection = m_peerConnectionFactory->CreatePeerConnection(config, nullptr, nullptr, obj);
+        //rtc::scoped_refptr<PeerConnectionObject> obj = new rtc::RefCountedObject<PeerConnectionObject>(*this);
+        auto obj = std::make_unique<PeerConnectionObject>(*this);
+
+        obj->connection = m_peerConnectionFactory->CreatePeerConnection(config, nullptr, nullptr, obj.get());
         if (obj->connection == nullptr)
         {
             return nullptr;
@@ -46,11 +48,13 @@ namespace WebRTC
         return m_mapClients[ptr].get();
     }
 
+    /*
     void PeerConnectionObject::OnSuccess(webrtc::SessionDescriptionInterface* desc)
     {
         std::string out;
         desc->ToString(&out);
         const auto type = ConvertSdpType(desc->GetType());
+        ::OutputDebugStringA(out.c_str());
         if (onCreateSDSuccess != nullptr)
         {
             onCreateSDSuccess(this, type, out.c_str());
@@ -66,6 +70,7 @@ namespace WebRTC
             onCreateSDFailure(this);
         }
     }
+    */
 
     void PeerConnectionObject::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) {
         auto obj = std::make_unique<DataChannelObject>(channel, *this);
@@ -139,8 +144,8 @@ namespace WebRTC
         if (connection != nullptr && connection->peer_connection_state() != webrtc::PeerConnectionInterface::PeerConnectionState::kClosed)
         {
             //Cleanup delegates/callbacks
-            onCreateSDSuccess = nullptr;
-            onCreateSDFailure = nullptr;
+//            onCreateSDSuccess = nullptr;
+//            onCreateSDFailure = nullptr;
             onLocalSdpReady = nullptr;
             onIceCandidate = nullptr;
             onIceConnectionChange = nullptr;
@@ -215,21 +220,23 @@ namespace WebRTC
         config = Json::writeString(builder, root);
     }
 
-    void PeerConnectionObject::CreateOffer(const RTCOfferOptions & options)
+    /*
+    void PeerConnectionObject::CreateOffer(const RTCOfferOptions & options, webrtc::CreateSessionDescriptionObserver* observer)
     {
         webrtc::PeerConnectionInterface::RTCOfferAnswerOptions _options;
         _options.ice_restart = options.iceRestart;
         _options.offer_to_receive_audio = options.offerToReceiveAudio;
         _options.offer_to_receive_video = options.offerToReceiveVideo;
-        connection->CreateOffer(this, _options);
+        connection->CreateOffer(observer, _options);
     }
 
-    void PeerConnectionObject::CreateAnswer(const RTCAnswerOptions& options)
+    void PeerConnectionObject::CreateAnswer(const RTCAnswerOptions& options, webrtc::CreateSessionDescriptionObserver* observer)
     {
         webrtc::PeerConnectionInterface::RTCOfferAnswerOptions _options;
         _options.ice_restart = options.iceRestart;
-        connection->CreateAnswer(this, _options);
+        connection->CreateAnswer(observer, _options);
     }
+    */
 
     void PeerConnectionObject::AddIceCandidate(const RTCIceCandidate& candidate)
     {
@@ -313,6 +320,32 @@ namespace WebRTC
         }
         throw std::invalid_argument("Unknown peer connection type");
     }
+
+    rtc::scoped_refptr<CreateSessionDescriptionObserver> CreateSessionDescriptionObserver::Create(int hashOnSuccess, int hashOnFailure, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure)
+    {
+        return new rtc::RefCountedObject<CreateSessionDescriptionObserver>(hashOnSuccess, hashOnSuccess, onSuccess, onFailure);
+    }
+
+    CreateSessionDescriptionObserver::CreateSessionDescriptionObserver(int hashOnSuccess, int hashOnFailure, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure) :
+        m_hashOnSuccess(hashOnSuccess),
+        m_hashOnFailure(hashOnFailure),
+        m_onSuccess(onSuccess),
+        m_onFailure(onFailure)
+    {
+    }
+
+    void CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface* desc)
+    {
+        std::string out;
+        desc->ToString(&out);
+        const auto type = ConvertSdpType(desc->GetType());
+        m_onSuccess(m_hashOnSuccess, type, out.c_str());
+    }
+    void CreateSessionDescriptionObserver::OnFailure(webrtc::RTCError error)
+    {
+        m_onFailure(m_hashOnFailure);
+    }
+
 #pragma warning(pop)
 }
 

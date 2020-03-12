@@ -96,7 +96,7 @@ namespace Unity.WebRTC.RuntimeTest
             Assert.AreEqual(0, peer.GetTransceivers().Count());
             var transceiver = peer.AddTransceiver(track, stream, RTCRtpTransceiverDirection.SendRecv);
             Assert.NotNull(transceiver);
-            Assert.That(() => Assert.NotNull(transceiver.CurrentDirection), Throws.InvalidOperationException);
+            Assert.That(() => Assert.NotNull(transceiver.Direction), Throws.InvalidOperationException);
             Assert.AreEqual(1, peer.GetTransceivers().Count());
             Assert.NotNull(peer.GetTransceivers().First());
         }

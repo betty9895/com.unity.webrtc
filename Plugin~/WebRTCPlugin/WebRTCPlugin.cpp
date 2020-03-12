@@ -339,14 +339,18 @@ extern "C"
         return ConvertArray<webrtc::RtpTransceiverInterface>(obj->connection->GetTransceivers(), length);
     }
 
-    UNITY_INTERFACE_EXPORT void PeerConnectionCreateOffer(PeerConnectionObject* obj, const RTCOfferOptions* options)
+    UNITY_INTERFACE_EXPORT void PeerConnectionCreateOffer(Context* context, PeerConnectionObject* obj, const RTCOfferOptions* options,
+        int hashOnSuccess, int hashOnFailure, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure)
     {
-        obj->CreateOffer(*options);
+        auto observer = CreateSessionDescriptionObserver::Create(hashOnSuccess, hashOnFailure, onSuccess, onFailure);
+        return context->CreateOffer(obj->connection, *options, observer);
     }
 
-    UNITY_INTERFACE_EXPORT void PeerConnectionCreateAnswer(PeerConnectionObject* obj, const RTCAnswerOptions* options)
+    UNITY_INTERFACE_EXPORT void PeerConnectionCreateAnswer(Context* context, PeerConnectionObject* obj, const RTCAnswerOptions* options,
+        int hashOnSuccess, int hashOnFailure, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure)
     {
-        obj->CreateAnswer(*options);
+        auto observer = CreateSessionDescriptionObserver::Create(hashOnSuccess, hashOnFailure, onSuccess, onFailure);
+        return context->CreateAnswer(obj->connection, *options, observer);
     }
 
     UNITY_INTERFACE_EXPORT DataChannelObject* ContextCreateDataChannel(Context* ctx, PeerConnectionObject* obj, const char* label, const RTCDataChannelInit* options)
@@ -374,10 +378,12 @@ extern "C"
         obj->RegisterCallbackCollectStats(onGetStats);
     }
 
+	/*
     UNITY_INTERFACE_EXPORT void PeerConnectionRegisterCallbackCreateSD(PeerConnectionObject* obj, DelegateCreateSDSuccess onSuccess, DelegateCreateSDFailure onFailure)
     {
         obj->RegisterCallbackCreateSD(onSuccess, onFailure);
     }
+	*/
 
     UNITY_INTERFACE_EXPORT void PeerConnectionRegisterOnSetSessionDescSuccess(Context* context, PeerConnectionObject* obj, DelegateSetSessionDescSuccess onSuccess)
     {
@@ -433,6 +439,22 @@ extern "C"
         return false;
     }
 
+    UNITY_INTERFACE_EXPORT webrtc::RtpTransceiverDirection TransceiverGetDirection(webrtc::RtpTransceiverInterface* transceiver)
+    {
+        return transceiver->direction();
+    }
+
+    UNITY_INTERFACE_EXPORT void TransceiverSetDirection(webrtc::RtpTransceiverInterface* transceiver, webrtc::RtpTransceiverDirection direction)
+    {
+        transceiver->SetDirection(direction);
+    }
+
+    UNITY_INTERFACE_EXPORT bool RtpSenderReplaceTrack(webrtc::RtpSenderInterface* sender, webrtc::MediaStreamTrackInterface* track)
+    {
+        return sender->SetTrack(track);
+    }
+
+
     UNITY_INTERFACE_EXPORT void TransceiverStop(webrtc::RtpTransceiverInterface* transceiver)
     {
         transceiver->Stop();
@@ -447,6 +469,12 @@ extern "C"
     {
         return transceiver->sender().get();
     }
+
+    UNITY_INTERFACE_EXPORT webrtc::MediaStreamTrackInterface* RtpReceiverGetMediaStreamTrack(webrtc::RtpReceiverInterface* receiver)
+    {
+        return receiver->track().get();
+    }
+
 
     UNITY_INTERFACE_EXPORT int DataChannelGetID(DataChannelObject* dataChannelObj)
     {

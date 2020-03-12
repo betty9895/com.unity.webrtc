@@ -17,14 +17,12 @@ namespace Unity.WebRTC
         public Action<string> OnStatsDelivered = null;
 
         private int m_id;
-        private IntPtr self;
+        internal IntPtr self;
         private DelegateOnIceConnectionChange onIceConnectionChange;
         private DelegateOnIceCandidate onIceCandidate;
         private DelegateOnDataChannel onDataChannel;
         private DelegateOnTrack onTrack;
         private DelegateOnNegotiationNeeded onNegotiationNeeded;
-        private DelegateCreateSDSuccess onCreateSDSuccess;
-        private DelegateCreateSDFailure onCreateSDFailure;
         private DelegateSetSessionDescSuccess onSetSessionDescSuccess;
         private DelegateSetSessionDescFailure onSetSetSessionDescFailure;
         private DelegateCollectStats m_onStatsDeliveredCallback;
@@ -168,6 +166,20 @@ namespace Unity.WebRTC
             }
         }
 
+        /*
+        internal DelegateSetSessionDescFailure OnCreateSessionDescriptionSuccess
+        {
+            get => onCreateSetSessionDescSuccess;
+            set
+            {
+                onCreateSetSessionDescSuccess = value;
+                WebRTC.Context.PeerConnectionRegisterOnC(self,
+                    OnCreateSessionDescriptionSuccess);
+            }
+        }
+        */
+
+
         [AOT.MonoPInvokeCallback(typeof(DelegateNativeOnIceCandidate))]
         static void PCOnIceCandidate(IntPtr ptr, string sdp, string sdpMid, int sdpMlineIndex)
         {
@@ -271,10 +283,11 @@ namespace Unity.WebRTC
 
         void InitCallback()
         {
-            onCreateSDSuccess = OnSuccessCreateSessionDesc;
-            onCreateSDFailure = OnFailureCreateSessionDesc;
             m_onStatsDeliveredCallback = OnStatsDeliveredCallback;
-            NativeMethods.PeerConnectionRegisterCallbackCreateSD(self, onCreateSDSuccess, onCreateSDFailure);
+
+            //Action callback = () => { };
+            //callback.GetHashCode();
+            NativeMethods.PeerConnectionRegisterCallbackCreateSD(self, OnSuccessCreateSessionDesc, OnFailureCreateSessionDesc);
             NativeMethods.PeerConnectionRegisterCallbackCollectStats(self, m_onStatsDeliveredCallback);
         }
 
@@ -314,9 +327,9 @@ namespace Unity.WebRTC
 
         public RTCSessionDescriptionAsyncOperation CreateOffer(ref RTCOfferOptions options)
         {
-            m_opSessionDesc = new RTCSessionDescriptionAsyncOperation();
-            NativeMethods.PeerConnectionCreateOffer(self, ref options);
-            return m_opSessionDesc;
+            var observer = NativeMethods.PeerConnectionCreateOffer(self, ref options, );
+            var op = new RTCSessionDescriptionAsyncOperation(observer);
+            return op;
         }
 
         public RTCSessionDescriptionAsyncOperation CreateAnswer(ref RTCAnswerOptions options)
@@ -332,22 +345,26 @@ namespace Unity.WebRTC
         }
 
         [AOT.MonoPInvokeCallback(typeof(DelegateCreateSDSuccess))]
-        static void OnSuccessCreateSessionDesc(IntPtr ptr, RTCSdpType type, string sdp)
+        internal static void OnSuccessCreateSessionDesc(int hash, RTCSdpType type, string sdp)
         {
             WebRTC.SyncContext.Post(_ =>
             {
-                if (null == WebRTC.Table)
-                    return;
-                if (!(WebRTC.Table[ptr] is RTCPeerConnection connection))
-                    return;
-
-                connection.m_opSessionDesc.Desc = new RTCSessionDescription { sdp = sdp, type = type };
-                connection.m_opSessionDesc.Done();
+                if (WebRTC.CallbackTable[hash] is Action<string, RTCSdpType> callback)
+                {
+                    callback(sdp, type);
+                }
+                /*
+                if (WebRTC.Table[ptr] is RTCPeerConnection connection)
+                {
+                    connection.m_opSessionDesc.Desc = new RTCSessionDescription {sdp = sdp, type = type};
+                    connection.m_opSessionDesc.Done();
+                }
+                */
             }, null);
         }
 
         [AOT.MonoPInvokeCallback(typeof(DelegateCreateSDFailure))]
-        static void OnFailureCreateSessionDesc(IntPtr ptr)
+        internal static void OnFailureCreateSessionDesc(IntPtr ptr)
         {
             WebRTC.SyncContext.Post(_ =>
             {

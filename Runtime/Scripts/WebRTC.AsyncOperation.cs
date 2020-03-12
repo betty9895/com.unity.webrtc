@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Unity.WebRTC
@@ -36,6 +37,59 @@ namespace Unity.WebRTC
 
     public class RTCSessionDescriptionAsyncOperation : AsyncOperationBase
     {
+        internal RTCSessionDescriptionAsyncOperation(RTCPeerConnection connection, ref RTCOfferOptions options)
+        {
+            Action<string, RTCSdpType> actionOnSuccess = OnSuccess;
+            var hashOnSuccess = actionOnSuccess.GetHashCode();
+            WebRTC.CallbackTable[hashOnSuccess] = actionOnSuccess;
+
+            Action actionOnFailure = OnFailure;
+            var hashOnFailure = actionOnFailure.GetHashCode();
+            WebRTC.CallbackTable[hashOnSuccess] = actionOnFailure;
+
+            WebRTC.Context.PeerConnectionCreateOffer(connection.self, ref options, hashOnSuccess, hashOnFailure);
+        }
+
+        internal RTCSessionDescriptionAsyncOperation(RTCPeerConnection connection, ref RTCAnswerOptions options)
+        {
+            Action<string, RTCSdpType> actionOnSuccess = OnSuccess;
+            var hashOnSuccess = actionOnSuccess.GetHashCode();
+            WebRTC.CallbackTable[hashOnSuccess] = actionOnSuccess;
+
+            Action actionOnFailure = OnFailure;
+            var hashOnFailure = actionOnFailure.GetHashCode();
+            WebRTC.CallbackTable[hashOnSuccess] = actionOnFailure;
+
+            WebRTC.Context.PeerConnectionCreateAnswer(connection.self, ref options, hashOnSuccess, hashOnFailure);
+        }
+
+        void OnSuccess(string sdp, RTCSdpType type)
+        {
+            this.Desc = new RTCSessionDescription { sdp = sdp, type = type };
+            this.Done();
+        }
+        void OnFailure()
+        {
+            this.IsError = true;
+            this.Done();
+        }
+
+        void RegisterOnFailure()
+        {
+            /*
+            Action<string, RTCSdpType> callback = (string sdp, RTCSdpType type) =>
+            {
+                this.Desc = new RTCSessionDescription { sdp = sdp, type = type };
+                this.Done();
+            };
+            var hash = callback.GetHashCode();
+            WebRTC.CallbackTable[hash] = callback;
+
+            NativeMethods.PeerConnectionRegisterOnCreateSessionDescSuccess(hash, RTCPeerConnection.OnSuccessCreateSessionDesc);
+            */
+        }
+
+
         public RTCSessionDescription Desc { get; internal set; }
     }
 
