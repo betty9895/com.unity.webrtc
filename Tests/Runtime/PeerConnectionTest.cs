@@ -94,7 +94,7 @@ namespace Unity.WebRTC.RuntimeTest
             var stream = Audio.CaptureStream();
             var track = stream.GetAudioTracks().First();
             Assert.AreEqual(0, peer.GetTransceivers().Count());
-            var transceiver = peer.AddTransceiver(track);
+            var transceiver = peer.AddTransceiver(track, stream, RTCRtpTransceiverDirection.SendRecv);
             Assert.NotNull(transceiver);
             Assert.That(() => Assert.NotNull(transceiver.CurrentDirection), Throws.InvalidOperationException);
             Assert.AreEqual(1, peer.GetTransceivers().Count());
@@ -166,6 +166,7 @@ namespace Unity.WebRTC.RuntimeTest
             var op4 = peer2.CreateAnswer(ref options2);
             yield return op4;
 
+            Assert.AreEqual(RTCSdpType.Answer, op4.Desc.type);
             Assert.True(op4.IsDone);
             Assert.False(op4.IsError);
 

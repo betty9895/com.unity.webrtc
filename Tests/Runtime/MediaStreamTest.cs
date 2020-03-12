@@ -69,7 +69,7 @@ namespace Unity.WebRTC.RuntimeTest
         [UnityTest]
         [Timeout(5000)]
         [Category("MediaStream")]
-        public IEnumerator MediaStreamAddTrack()
+        public IEnumerator MediaStreamAddTrackVideoStreamTrack()
         {
             var width = 256;
             var height = 256;
@@ -154,7 +154,7 @@ namespace Unity.WebRTC.RuntimeTest
 
         [UnityTest]
         [Timeout(5000)]
-        public IEnumerator CaptureStream()
+        public IEnumerator AddAndRemoveVideoMediaTrack()
         {
             var camObj = new GameObject("Camera");
             var cam = camObj.AddComponent<Camera>();

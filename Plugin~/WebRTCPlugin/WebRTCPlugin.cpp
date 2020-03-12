@@ -250,14 +250,12 @@ extern "C"
         return obj->connection->AddTrack(rtc::scoped_refptr <webrtc::MediaStreamTrackInterface>(track), { streamId }).value().get();
     }
 
-    UNITY_INTERFACE_EXPORT webrtc::RtpTransceiverInterface* PeerConnectionAddTransceiver(PeerConnectionObject* obj, webrtc::MediaStreamTrackInterface* track)
+    UNITY_INTERFACE_EXPORT webrtc::RtpTransceiverInterface* PeerConnectionAddTransceiver(PeerConnectionObject* obj, webrtc::MediaStreamTrackInterface* track, webrtc::MediaStreamInterface* stream, webrtc::RtpTransceiverDirection direction)
     {
-        return obj->connection->AddTransceiver(track).value().get();
-    }
-
-    UNITY_INTERFACE_EXPORT webrtc::RtpTransceiverInterface* PeerConnectionAddTransceiverWithInit(PeerConnectionObject* obj, webrtc::MediaStreamTrackInterface* track, webrtc::RtpTransceiverInit* init)
-    {
-        return obj->connection->AddTransceiver(track, *init).value().get();
+        webrtc::RtpTransceiverInit init;
+        init.direction = direction;
+        init.stream_ids = { stream->id() };
+        return obj->connection->AddTransceiver(track, init).value().get();
     }
 
     UNITY_INTERFACE_EXPORT void PeerConnectionRemoveTrack(PeerConnectionObject* obj, webrtc::RtpSenderInterface* sender)
